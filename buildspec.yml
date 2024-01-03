@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    CEDAR_VERSION_EXPECTED: "2.4.2"
+
+phases:
+  build:
+    commands:
+      - export PATH="/root/.cargo/bin:$PATH"
+      - >
+         if [ -f /root/.cargo/bin/cedar ]; then export CEDAR_VERSION=$(cedar --version | cut -d ' '  -f 2); fi 
+      - >
+         echo "expected cedar version $CEDAR_VERSION_EXPECTED found $CEDAR_VERSION"
+      - >
+         [[ "$CEDAR_VERSION" == "$CEDAR_VERSION_EXPECTED" ]] || rm -f /root/.cargo/bin/cedar
+      - >
+         [ -f /root/.cargo/bin/cedar ] || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - >
+         [ -f /root/.cargo/bin/cedar ] || cargo install cedar-policy-cli@"$CEDAR_VERSION_EXPECTED"
+      - cd policystore/tests
+      - ./cedar_testrunner.sh
+
+# https://docs.aws.amazon.com/codebuild/latest/userguide/report-create.html
+reports:
+  test-report:
+    files:
+      - junitreport.xml
+    file-format: "JUNITXML"
+    base-directory: policystore/tests
+
+cache:
+  paths:
+    - '/root/.cargo/bin/cedar'

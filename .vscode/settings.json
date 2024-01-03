@@ -1,0 +1,10 @@
+{
+  "[cedar]": {
+    "editor.tabSize": 2,
+    "editor.wordWrapColumn": 80,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "cedar-policy.vscode-cedar",
+  },
+  "cedar.schemaFile": "policystore/cedarschema.json",
+  "cedar.autodetectSchemaFile": false,
+}

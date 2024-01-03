@@ -1,0 +1,4 @@
+**/.DS_Store
+.codebuild
+policystore/tests/temppolicies.cedar
+policystore/tests/junitreport.xml

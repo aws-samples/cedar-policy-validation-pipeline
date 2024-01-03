@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cedar policy validation pipeline
+
+Parameters:
+  CedarPolicyRepoName:
+    Description: The name of a CodeCommit repository to be created.
+    Type: String
+    Default: cedar-policy-validation
+
+Resources:
+  CodePipelineBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: 'Access logging not configured for this sample'
+          - id: W51
+            reason: 'Bucket policy not configured for this sample'
+            
+  CedarPolicyRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref CedarPolicyRepoName
+
+  CodeBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/codebuild/cedar-policy-validation'
+      RetentionInDays: 7
+    DeletionPolicy: 'Delete'
+    UpdateReplacePolicy: 'Delete'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: 'Default encryption (not AWS KMS) used for this sample'
+
+  CodeBuildPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Effect: Allow
+          Resource:
+          - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CodeBuildLogGroup}:log-stream:*'
+        - Action:
+          - s3:PutObject
+          - s3:GetObject
+          - s3:GetObjectVersion
+          Effect: Allow
+          Resource:
+          - !GetAtt CodePipelineBucket.Arn
+          - !Sub '${CodePipelineBucket.Arn}/*'
+        - Action:
+          - codecommit:GitPull
+          Effect: Allow
+          Resource: !GetAtt CedarPolicyRepo.Arn
+      PolicyName: !Join
+        - '-'
+        -  - !Ref 'AWS::StackName'
+           - CodeBuildPolicy
+      Roles:
+      - !Ref 'CodeBuildServiceRole'
+
+
+  CedarValidationBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: cedar-policy-validation
+      Description: Validates policies
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt CedarPolicyRepo.CloneUrlHttp
+        BuildSpec: buildspec.yml
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Cache:
+        Location: !Ref 'CodePipelineBucket'
+        Type: S3     
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+      TimeoutInMinutes: 60
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W32
+            reason: 'Managed CMK for EncryptionKey used for this sample'
+
+  CedarValidationReportGroup: 
+    Type: AWS::CodeBuild::ReportGroup
+    Properties:
+      Name: cedar-policy-validation-test-report
+      DeleteReports: true
+      ExportConfig:
+        ExportConfigType: NO_EXPORT
+      Type: TEST
+
+  CedarValidationPipeline: 
+    Type: AWS::CodePipeline::Pipeline 
+    Properties: 
+      Name: cedar-policy-validation
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages: 
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                BranchName: main
+                RepositoryName: !Ref CedarPolicyRepoName
+                PollForSourceChanges: false
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: cedar-policy-validation
+              InputArtifacts:
+                - Name: SourceOutput
+              RunOrder: 1      
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineBucket
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/cedar-policy-validation'
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - codebuild:CreateReportGroup
+            - codebuild:CreateReport
+            - codebuild:BatchPutTestCases
+            - codebuild:UpdateReport
+            Effect: Allow
+            Resource: !GetAtt CedarValidationReportGroup.Arn
+        PolicyName: !Join
+        - '-'
+        - - !Ref 'AWS::StackName'
+          - CodeBuildServiceRolePolicy
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - s3:GetObject
+            - s3:GetObjectVersion
+            - s3:GetBucketVersioning
+            - s3:PutObject
+            Effect: Allow
+            Resource:
+            - !GetAtt CodePipelineBucket.Arn
+            - !Sub '${CodePipelineBucket.Arn}/*'
+          - Action:
+            - codecommit:CancelUploadArchive
+            - codecommit:GetBranch
+            - codecommit:GetCommit
+            - codecommit:GetUploadArchiveStatus
+            - codecommit:UploadArchive
+            Effect: Allow
+            Resource: !GetAtt CedarPolicyRepo.Arn
+          - Action:
+            - codebuild:StartBuild
+            - codebuild:BatchGetBuilds
+            - codebuild:StopBuild
+            Effect: Allow
+            Resource: !GetAtt CedarValidationBuild.Arn
+        PolicyName: !Join
+        - '-'
+        - - !Ref 'AWS::StackName'
+          - CodePipelineRolePolicy
+  EventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref 'AWS::AccountId'
+      Policies:
+        - PolicyName: cedar-pipeline-execution
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${CedarValidationPipeline}'
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources: [ !GetAtt CedarPolicyRepo.Arn ]
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceType:
+            - branch
+          referenceName:
+            - main
+      Targets:
+        - Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${CedarValidationPipeline}'
+          RoleArn: !GetAtt EventRole.Arn
+          Id: codepipeline-CedarValidationPipeline
+
+Outputs:
+  CedarPolicyRepoCloneUrl:
+    Description: CodeCommit repository HTTPS clone URL
+    Value: !GetAtt CedarPolicyRepo.CloneUrlHttp
+  CedarPolicyRepoCloneGRCUrl:
+    Description: CodeCommit repository HTTPS (GRC) clone URL
+    Value: !Sub 'codecommit::${AWS::Region}://${CedarPolicyRepoName}'
