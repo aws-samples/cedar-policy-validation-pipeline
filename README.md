@@ -15,19 +15,19 @@ Start by cloning this repository. Before committing this source code to an AWS C
 
 **Option 1**: [Install Rust](https://www.rust-lang.org/tools/install) and compile the Cedar CLI binary
 
-a. Install Rust using the `rustup` tool.
+1. Install Rust using the `rustup` tool.
 
     ```bash
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
     ```
 
-b. Compile the Cedar CLI (version 2.4.2) binary using `cargo`.
+1. Compile the Cedar CLI (version 2.4.2) binary using `cargo`.
 
     ```bash
     cargo install cedar-policy-cli@2.4.2
     ```
 
-c. Run the `cedar_testrunner.sh` script, which tests authorize requests by using the Cedar CLI.
+1. Run the `cedar_testrunner.sh` script, which tests authorize requests by using the Cedar CLI.
 
     ```bash
     cd policystore/tests && ./cedar_testrunner.sh
@@ -35,7 +35,7 @@ c. Run the `cedar_testrunner.sh` script, which tests authorize requests by using
 
 **Option 2**: [Run the CodeBuild agent](https://docs.aws.amazon.com/codebuild/latest/userguide/use-codebuild-agent.html#use-codebuild-agent.run-agent)
 
-a. Locally evaluate the `buildspec.yml` inside a CodeBuild container image by using the `codebuild_build.sh` script from [aws-codebuild-docker-images](https://github.com/aws/aws-codebuild-docker-images) with the following parameters:
+1. Locally evaluate the `buildspec.yml` inside a CodeBuild container image by using the `codebuild_build.sh` script from [aws-codebuild-docker-images](https://github.com/aws/aws-codebuild-docker-images) with the following parameters:
 
     ```bash
     ./codebuild_build.sh -i public.ecr.aws/codebuild/amazonlinux2-x86_64-standard:5.0 -a .codebuild
