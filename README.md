@@ -2,6 +2,8 @@
 
 [Cedar](https://www.cedarpolicy.com/) is an open-source language that you can use to authorize policies and make authorization decisions based on those policies. AWS security services including [AWS Verified Access](https://aws.amazon.com/verified-access/) and [Amazon Verified Permissions](https://aws.amazon.com/verified-permissions/) use Cedar to define policies. Cedar supports schema declaration for the structure of entity types in those policies and [policy validation](https://docs.cedarpolicy.com/policies/validation.html) with that schema. The solution outlined in this repository uses [Developer Tools on AWS](https://aws.amazon.com/products/developer-tools/) to implement a build pipeline that validates the Cedar policy files against a schema and runs a suite of tests to isolate the Cedar policy logic.
 
+Read the related AWS Security Blog post ([Automate Cedar policy validation with AWS developer tools](https://aws.amazon.com/blogs/security/automate-cedar-policy-validation-with-aws-developer-tools/)) to see how a subtle policy error that impacts permissions can "break the build" and fail the pipeline execution.
+
 ## Scenario
 
 This repository extends a hypothetical photo sharing application from the [Cedar policy language in action](https://catalog.workshops.aws/cedar-policy-language-in-action) workshop. By using that app, users organize their photos into albums and share them with groups of users. Figure 1 shows the entities from the photo application.
