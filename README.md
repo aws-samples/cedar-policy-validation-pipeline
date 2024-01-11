@@ -1,6 +1,6 @@
 # Automate Cedar policy validation with AWS Developer Tools
 
-[Cedar](https://www.cedarpolicy.com/) is an open-source language that you can use to authorize policies and make authorization decisions based on those policies. AWS security services including [AWS Verified Access](https://aws.amazon.com/verified-access/) and [Amazon Verified Permissions](https://aws.amazon.com/verified-permissions/) use Cedar to define policies. Cedar supports schema declaration for the structure of entity types in those policies and [policy validation](https://docs.cedarpolicy.com/policies/validation.html) with that schema. The solution outlined in this repository uses [Developer Tools on AWS](https://aws.amazon.com/products/developer-tools/) to implement a build pipeline that validates the Cedar policy files against a schema and runs a suite of tests to isolate the Cedar policy logic.
+[Cedar](https://www.cedarpolicy.com/) is an open-source language that you can use to write policies and make authorization decisions based on those policies. AWS security services including [AWS Verified Access](https://aws.amazon.com/verified-access/) and [Amazon Verified Permissions](https://aws.amazon.com/verified-permissions/) use Cedar to define policies. Cedar supports schema declaration for the structure of entity types in those policies and [policy validation](https://docs.cedarpolicy.com/policies/validation.html) with that schema. The solution outlined in this repository uses [Developer Tools on AWS](https://aws.amazon.com/products/developer-tools/) to implement a build pipeline that validates the Cedar policy files against a schema and runs a suite of tests to isolate the Cedar policy logic.
 
 Read the related AWS Security Blog post ([Automate Cedar policy validation with AWS developer tools](https://aws.amazon.com/blogs/security/automate-cedar-policy-validation-with-aws-developer-tools/)) to see how a subtle policy error that impacts permissions can "break the build" and fail the pipeline execution.
 
@@ -47,7 +47,7 @@ Start by cloning this repository. Before committing this source code to an AWS C
 
 The `policystore` directory contains one Cedar policy for each `.cedar` file. The Cedar schema is defined the `cedarschema.json` file. A `tests` subdirectory contains a `cedarentities.json` file that represents the application data; its subdirectories (for example, album  `JaneVacation`) represent the test suites. The test suite directories contain individual tests inside their `ALLOW` and `DENY` subdirectories, each with one or more JSON files that contain the authorization request that Cedar will evaluate against the policy set.  A README file in the `tests` directory provides a summary of the test cases in the suite.
 
-The `cedar_testrunner.sh` script runs the Cedar CLI to perform a `validate` command for each .cedar file against the Cedar schema, outputting either PASS or ERROR.  The script also performs an `authorize` command on each test file, outputting either `PASS` or `FAIL` depending on whether the results match the expected authorization decision.
+The `cedar_testrunner.sh` script runs the Cedar CLI to perform a `validate` command for each `.cedar` file against the Cedar schema, outputting either `PASS` or `ERROR`.  The script also performs an `authorize` command on each test file, outputting either `PASS` or `FAIL` depending on whether the results match the expected authorization decision.
 
 ## Set up the CodePipeline
 
@@ -97,7 +97,7 @@ To avoid ongoing costs and to clean up the resources that you deployed in your A
 
 **To clean up the resources**
 
-1. Open the *Amazon S3* console, select the bucket that begins with the phrase **cedar-policy-validation-codepipelinebucket**, and **Empty** the bucket.
+1. Open the **Amazon S3** console, select the bucket that begins with the phrase **cedar-policy-validation-codepipelinebucket**, and **Empty** the bucket.
 1. Open the **CloudFormation** console, select the **cedar-policy-validation** stack, and then choose **Delete**.
 1. Open the **CodeBuild** console, choose **Build History**, filter by `cedar-policy-validation`, select all results, and then choose **Delete builds**.
 
